@@ -1,0 +1,36 @@
+language: go
+branches:
+  only:
+  - master
+  - develop
+  - "/^sprint.*$/"
+matrix:
+  fast_finish: true
+  include:
+  - os: linux
+    dist: xenial
+    go: "1.15"
+    if: type = cron
+    env: JOB=k8s_test
+    services:
+    - docker
+    before_install:
+    - echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
+    - git clone https://github.com/kubernetes/client-go $GOPATH/src/k8s.io/client-go
+    - git clone --branch v0.4.0 https://github.com/googleapis/gnostic $GOPATH/src/k8s.io/client-go/vendor/github.com/googleapis/gnostic
+    - go get sigs.k8s.io/aws-iam-authenticator/cmd/aws-iam-authenticator@v0.5.0
+    - docker pull iostio/iost-dev:latest
+    - git lfs install
+    - pyenv global 3.6.7 && pip install awscli
+    - sudo apt-get clean && sudo apt-get update && sudo apt-get install -y dpkg 
+    - sudo apt-get install -y apt-transport-https
+    - curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+    - echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+    - sudo apt-get update && sudo apt-get install -y kubectl
+    before_script:
+    - git lfs pull
+    script:
+    - pyenv global 3.6.7
+    - aws eks update-kubeconfig --region us-west-2 --name devnet
+    - make k8s_test
+
